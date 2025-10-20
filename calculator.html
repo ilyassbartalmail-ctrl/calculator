@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Simple Web Calculator</title>
+  <style>
+    :root{
+      --bg:#0f1724;
+      --panel:#0b1220;
+      --accent:#7c3aed;
+      --btn:#111827;
+      --btn-ops:#1f2937;
+      --text:#e6eef8;
+      --muted:#9aa6bd;
+      --glass: rgba(255,255,255,0.03);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial}
+    body{
+      background: linear-gradient(180deg,#071025 0%, #071832 60%);
+      display:flex;align-items:center;justify-content:center;padding:32px;color:var(--text)
+    }
+
+    .calculator{
+      width:340px;
+      max-width:94vw;
+      background: linear-gradient(180deg, var(--panel), rgba(11,18,32,0.95));
+      border-radius:18px;
+      padding:18px;
+      box-shadow: 0 10px 30px rgba(2,6,23,0.6), inset 0 1px 0 rgba(255,255,255,0.02);
+      user-select:none;
+    }
+
+    .brand{display:flex;align-items:center;gap:10px;margin-bottom:8px; position: relative;}
+    .logo{width:36px;height:36px;border-radius:8px;background:linear-gradient(135deg,var(--accent),#4f46e5);display:flex;align-items:center;justify-content:center;font-weight:700;position:relative;}
+    .brand h1{font-size:14px;margin:0}
+    .brand p{margin:0;font-size:12px;color:var(--muted)}
+
+    /* Download button next to logo */
+    #downloadBtn{
+      position: absolute;
+      right:0;
+      font-size:18px;
+      background:transparent;
+      border:none;
+      cursor:pointer;
+      color:var(--text);
+      transition:transform .1s;
+    }
+    #downloadBtn:hover{transform:scale(1.2);}
+
+    .display{
+      background:var(--glass);
+      padding:14px 12px;border-radius:12px;margin-bottom:12px;min-height:64px;display:flex;flex-direction:column;justify-content:center;align-items:flex-end
+    }
+    .display .history{font-size:12px;color:var(--muted);opacity:0.9;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;width:100%}
+    .display .value{font-size:28px;font-weight:600;line-height:1.05;word-break:break-all}
+
+    .keys{
+      display:grid;grid-template-columns:repeat(4,1fr);gap:10px;
+    }
+
+    button{
+      border:0;padding:16px;border-radius:10px;font-size:16px;font-weight:600;background:var(--btn);color:var(--text);box-shadow: 0 6px 14px rgba(2,6,23,0.45);cursor:pointer;transition:transform .06s ease,box-shadow .06s ease;
+    }
+    button:active{transform:translateY(2px)}
+
+    .btn-wide{grid-column:span 2}
+    .btn-ops{background:var(--btn-ops);color:#fff}
+    .btn-ac{background:#2b2f3a;color:#fff}
+    .btn-equal{background:linear-gradient(180deg,var(--accent),#5b21b6);color:white;grid-column:span 2}
+
+    .muted{background:transparent;color:var(--muted);box-shadow:none}
+
+    /* responsive */
+    @media (max-width:420px){
+      .calculator{padding:12px;border-radius:14px}
+      button{padding:12px;font-size:15px}
+      .display .value{font-size:22px}
+      #downloadBtn{font-size:16px}
+    }
+  </style>
+</head>
+<body>
+  <main class="calculator" role="application" aria-label="Calculator">
+    <div class="brand">
+      <div class="logo">C</div>
+      <button id="downloadBtn" title="Download Calculator">📥</button>
+      <div>
+        <h1>Web Calculator</h1>
+        <p>HTML • CSS • JS — Responsive</p>
+      </div>
+    </div>
+
+    <div class="display" aria-live="polite">
+      <div class="history" id="history">&nbsp;</div>
+      <div class="value" id="display">0</div>
+    </div>
+
+    <section class="keys" role="group" aria-label="Calculator keypad">
+      <button class="btn-ac muted" data-action="clear">AC</button>
+      <button class="muted" data-action="back">⌫</button>
+      <button data-action="percent" class="muted">%</button>
+      <button data-action="op" class="btn-ops">÷</button>
+
+      <button data-num="7">7</button>
+      <button data-num="8">8</button>
+      <button data-num="9">9</button>
+      <button data-action="op" class="btn-ops">×</button>
+
+      <button data-num="4">4</button>
+      <button data-num="5">5</button>
+      <button data-num="6">6</button>
+      <button data-action="op" class="btn-ops">−</button>
+
+      <button data-num="1">1</button>
+      <button data-num="2">2</button>
+      <button data-num="3">3</button>
+      <button data-action="op" class="btn-ops">+</button>
+
+      <button data-action="toggle-sign">±</button>
+      <button data-num="0">0</button>
+      <button data-num=".">.</button>
+      <button class="btn-equal" data-action="equals">=</button>
+    </section>
+
+  </main>
+
+  <script>
+    // Download Calculator Function
+    document.getElementById('downloadBtn').addEventListener('click', ()=>{
+      const blob = new Blob([document.documentElement.outerHTML], {type: 'text/html'});
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'calculator.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    });
+
+    (function(){
+      const displayEl = document.getElementById('display');
+      const historyEl = document.getElementById('history');
+      let current = '0';
+      let previous = '';
+      let waitingForOperand = false;
+
+      function update(){
+        displayEl.textContent = current;
+        historyEl.textContent = previous || '\u00A0';
+      }
+
+      function inputDigit(d){
+        if(waitingForOperand){ current = d; waitingForOperand = false; }
+        else if(current === '0' && d !== '.') current = d;
+        else current = current + d;
+        update();
+      }
+
+      function inputDot(){
+        if(waitingForOperand){ current = '0.'; waitingForOperand = false; }
+        else if(!current.includes('.')) current += '.';
+        update();
+      }
+
+      function clearAll(){ current = '0'; previous = ''; waitingForOperand = false; update(); }
+
+      function backspace(){
+        if(waitingForOperand) return;
+        if(current.length <= 1){ current = '0'; }
+        else current = current.slice(0,-1);
+        update();
+      }
+
+      function toggleSign(){
+        if(current === '0') return;
+        current = current.startsWith('-') ? current.slice(1) : '-' + current;
+        update();
+      }
+
+      function applyPercent(){
+        const num = parseFloat(current);
+        if(isNaN(num)) return;
+        current = String(num / 100);
+        update();
+      }
+
+      function handleOperator(op){
+        const friendlyToJs = { '×':'*', '÷':'/', '−':'-' , '+':'+' };
+        const jsOp = friendlyToJs[op] || op;
+        if(previous && !waitingForOperand){
+          previous = evaluateExpression(previous + ' ' + current);
+          current = String(previous);
+          previous = '';
+        }
+        previous = current + ' ' + op;
+        waitingForOperand = true;
+        update();
+      }
+
+      function evaluateExpression(expr){
+        try{
+          const sanitized = expr.replace(/[×]/g,'*').replace(/[÷]/g,'/').replace(/[−]/g,'-');
+          if(!/^[0-9.+\-*/() %]+$/.test(sanitized)) throw new Error('Invalid chars');
+          const result = Function('return ('+sanitized+')')();
+          if(typeof result === 'number' && !isFinite(result)) return 'Error';
+          return String(result);
+        }catch(e){
+          return 'Error';
+        }
+      }
+
+      function calculate(){
+        if(!previous) return;
+        const full = previous + ' ' + current;
+        const friendly = full.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-');
+        const res = evaluateExpression(friendly);
+        previous = '';
+        current = res;
+        waitingForOperand = true;
+        update();
+      }
+
+      document.querySelectorAll('button').forEach(btn=>{
+        btn.addEventListener('click', ()=>{
+          const num = btn.dataset.num;
+          const action = btn.dataset.action;
+          if(num !== undefined){
+            if(num === '.') inputDot(); else inputDigit(num);
+            return;
+          }
+          if(action){
+            if(action === 'clear') clearAll();
+            else if(action === 'back') backspace();
+            else if(action === 'toggle-sign') toggleSign();
+            else if(action === 'percent') applyPercent();
+            else if(action === 'op') handleOperator(btn.textContent.trim());
+            else if(action === 'equals') calculate();
+          }
+        });
+      });
+
+      window.addEventListener('keydown', (e)=>{
+        if(e.ctrlKey || e.metaKey) return;
+        const key = e.key;
+        if(/^[0-9]$/.test(key)) inputDigit(key);
+        else if(key === '.') inputDot();
+        else if(key === 'Backspace') backspace();
+        else if(key === 'Escape') clearAll();
+        else if(key === 'Enter' || key === '=') { e.preventDefault(); calculate(); }
+        else if(key === '+' || key === '-') handleOperator(key === '+'? '+' : '−');
+        else if(key === '*') handleOperator('×');
+        else if(key === '/') handleOperator('÷');
+      });
+
+      update();
+    })();
+  </script>
+</body>
+</html>
